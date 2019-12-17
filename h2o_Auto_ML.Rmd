@@ -1,0 +1,130 @@
+---
+title: "Knee-Arthroplasty | Femur AP"
+author: "Knee Arthroplasty Femur AP Prediction"
+date: "12/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#library(devtools)
+#devtools::install_github("h2oai/h2o4gpu", subdir = "src/interface_r")
+```
+
+
+## Train Base Learners
+
+Let's train and cross-validate a set of H2O and XGBoost models and then create a [Stacked Ensemble](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/stacked-ensembles.html) using the **h2o** R package.
+
+### Start H2O Cluster & Load Data
+
+```{r h2o_init}
+#install.packages("ggplot2","dplyr")
+#devtools::install_github("h2oai/h2o4gpu", subdir = "src/interface_r")
+#install.packages("h2o", type="source", repos="http://h2o-release.s3.amazonaws.com/h2o/rel-yau/9/R")
+
+library(ggplot2)
+library(h2o)
+library(dplyr)
+h2o.init(name ="FemurAP",  port = 7777, nthreads = -1, max_mem_size = "28g")
+
+select = dplyr::select; summarize = dplyr::summarize; rename = dplyr::rename; mutate = dplyr::mutate;
+
+# reproducability
+set.seed(7)
+```
+
+## Import Training Frame
+
+
+```{r cache=F, echo=T}
+# import
+train.df <-  read.csv("train.csv")
+naniar::gg_miss_var(train.df )+ labs(title = "Frequency of Missingness on Training")
+
+skimmed <- skimr::skim_to_wide(train.df)
+
+```
+
+## Import Testing Frame
+
+
+```{r cache=F, echo=T}
+# import
+test.df <-  read.csv("test.csv")
+naniar::gg_miss_var(test.df )+ labs(title = "Frequency of Missingness on Training")
+skimmed <- skimr::skim_to_wide(test.df)
+
+```
+## Handle Missing Data
+TODO: find better way of missing data handling
+```{r echo=T}
+
+```
+
+## Inject the data to H2O
+
+
+```{r h2o_load_data, echo=T}
+
+# inject r df to h20
+train <- as.h2o(na.omit(train.df))
+test <- as.h2o(na.omit(test.df))
+
+# Identify predictors and response
+y <- "Femur_AP_mm"
+x <-  c( "Gender", "BMI","Weight_kg", "Height_cm")
+
+
+# Number of CV folds (to generate level-one data for stacking)
+nfolds <- 5
+grid_id=gsub("[[:punct:]]","_" , paste("gbm_grid",Sys.time()) ,ignore.case = TRUE)
+```
+
+##  AutoML
+```{r, echo=T, eval=F}
+
+# Train and validate using AutoML
+autoML <- h2o.automl( project_name = "FemurAutoML",
+                       x = x, y = y,
+                       training_frame = train,
+                       nfolds = nfolds,
+                       max_runtime_secs = 28800,
+                       max_models = 200,
+                       keep_cross_validation_predictions = TRUE,
+                       keep_cross_validation_models = FALSE,
+                       #balance_classes = T,
+                       include_algos = c("GLM", "DeepLearning", "DRF", 'GBM','XGBoost','StackedEnsemble'),
+                       validation_frame = test,
+                       stopping_rounds = 10,
+                       #stopping_tolerance=0.001,
+                       export_checkpoints_dir="checkpoint",
+                       sort_metric ="MAE",
+                       leaderboard_frame = test,
+                       #blending_frame = NULL,
+                       seed = 7)
+
+
+#print(leader_models)
+print(autoML@leaderboard)
+
+#how to predict
+#pred <- h2o.predict(autoML@leader, test) #h2o.predict(autoML, test)  #predict(autoML, test) also works
+# save the model
+#model_path <- h2o.saveModel(object=model, path=getwd(), force=TRUE)
+# load the model
+#saved_model <- h2o.loadModel(model_path)
+
+```
+
+
+
+
+
+
+## shut down cluster
+
+```{r}
+h2o.shutdown(prompt = TRUE)
+```
+
