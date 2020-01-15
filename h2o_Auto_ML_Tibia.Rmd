@@ -26,7 +26,7 @@ Let's train and cross-validate a set of H2O and XGBoost models and then create a
 library(ggplot2)
 library(h2o)
 library(dplyr)
-h2o.init(name ="FemurAP",  port = 7777, nthreads = -1, max_mem_size = "28g")
+h2o.init(name ="TibiaAP",  port = 7777, nthreads = -1, max_mem_size = "28g")
 
 select = dplyr::select; summarize = dplyr::summarize; rename = dplyr::rename; mutate = dplyr::mutate;
 
@@ -72,7 +72,7 @@ train <- as.h2o(na.omit(train.df))
 test <- as.h2o(na.omit(test.df))
 
 # Identify predictors and response
-y <- "Femur_AP_mm"
+y <- "Tibia_ML_mm"
 x <-  c( "Gender", "BMI","Weight_kg", "Height_cm")
 
 
@@ -85,12 +85,12 @@ grid_id=gsub("[[:punct:]]","_" , paste("gbm_grid",Sys.time()) ,ignore.case = TRU
 ```{r, echo=T, eval=F}
 
 # Train and validate using AutoML
-autoML <- h2o.automl( project_name = "FemurAutoML",
+autoML <- h2o.automl( project_name = "TibiaAutoML",
                        x = x, y = y,
                        training_frame = train,
                        nfolds = nfolds,
-                      # max_runtime_secs = 28800,
-                       max_models = 200,
+                       max_runtime_secs = 2880000,
+                       max_models = 2000,
                        keep_cross_validation_predictions = TRUE,
                        keep_cross_validation_models = FALSE,
                        #balance_classes = T,
